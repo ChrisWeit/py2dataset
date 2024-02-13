@@ -39,7 +39,7 @@ inference_model:
     #if you want to use gpu_layers, comment out the lib line;
     #if you want to use CPU only, comment out the gpu_layers line
     #lib: "avx2"
-    gpu_layers: 2
+    gpu_layers: 1
     threads: 16
     batch_size: 512
     context_length: 10000
