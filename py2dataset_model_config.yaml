@@ -1,10 +1,10 @@
 # context is the Python source code
 system_prompt: "Provide complete structured response for a formal software audit, given this Context:\n'{context}'\n"
 
-# query is the "text" from the py2dataset_question.json where the "id" is "file_purpose"  
+# query is the "text" from the py2dataset_question.json where the "id" is "file_purpose"
 instruction_prompt: "\nPlease provide a very detailed, accurate, and insightful Response to this Instruction and include your reasoning step by step.\n{query}\n"
 
-# Uncomment out the desired prompt template 
+# Uncomment out the desired prompt template
 # chatML
 #prompt_template: "<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{instruction_prompt}<|im_end|>\n<|im_start|>assistant\n"
 
@@ -36,12 +36,12 @@ inference_model:
     #model_type: "llama"
     #local_files_only: true
     ## MODEL CONFIGURATION PARAMETERS (GPU 4090 - 24GB VRAM, CPU 5950x - 64GB RAM)
-    #if you want to use gpu_layers, comment out the lib line; 
-    #if you want to use CPU only, comment out the gpu_layers line 
+    #if you want to use gpu_layers, comment out the lib line;
+    #if you want to use CPU only, comment out the gpu_layers line
     #lib: "avx2"
-    gpu_layers: 100
+    gpu_layers: 2
     threads: 16
     batch_size: 512
-    context_length: 50000
-    max_new_tokens: 50000
+    context_length: 10000
+    max_new_tokens: 10000
     reset: true
