@@ -137,7 +137,10 @@ class DatasetGenerator:
         """
         excluded_instructions = ["Call code graph", "Docstring"]
         code_qa_list = [
-            {item["instruction"].split(" in Python file:")[0]: item["output"]}
+            {item["instruction"].split(
+                "are in Python file",
+                " in Python file:",
+                "of the Python file")[0]: item["output"]}
             for item in self.instruct_list
             if not any(
                 item["instruction"].startswith(prefix)
