@@ -318,6 +318,105 @@ class DatasetGenerator:
                 query = question_text.format(filename=self.base_name, **mapping)
                 self.process_question(question_type, question_id, query, context, info)
 
+    def generate_instructions(self, context: str, iteratino: int = 0) -> List[Dict]:
+        max_context_length = self.model_config["inference_model"]["model_params"][
+            "context_length"
+        ]
+
+        prompt_template = self.model_config["prompt_template"].format(
+            system_prompt=self.model_config["system_prompt"],
+            instruction_prompt=self.model_config["instruction_gen_prompt_2"],
+        )
+
+        prompt = prompt_template.format(context=context)
+        context_size = len(self.llm.tokenize(prompt))
+        logging.info("***Context Size: " + str(context_size))
+
+        if context_size > 0.70 * max_context_length:
+            err_msg = f"Model response failed, increase py2dataset_model_config.yaml context_length > {math.ceil(context_size/0.70)}"
+            logging.error(err_msg)
+            return ""
+
+        response = ""
+        try:
+            response = re.sub(r"\n\s*\n", "\n\n", self.llm(prompt))
+            logging.info(f"***Overall Response: {response}")
+        except Exception as error:
+            logging.error(f"Failed to generate model response: {error}")
+
+        # get all indeces of all occurences of 'In the context of Home Assistant' in response
+        indices = [m.start() for m in re.finditer("In the context of Home Assistant", response)]
+
+        if indices == []:
+            logging.error("Failed to generate instructions: No instructions found")
+            logging.error("Response: " + response)
+            logging.error("Prompt: " + prompt)
+            if iteratino > 1:
+                # exit(1)
+                return ""
+            return self.generate_instructions(context, iteratino + 1)
+
+        response = response[indices[0]:]
+        instructions = []
+        for i, _ in enumerate(indices):
+            if i == len(indices) - 1:
+                instructions.append(response[indices[i]-indices[0]:])
+            else:
+                instructions.append(response[indices[i]-indices[0]:indices[i+1]-indices[0]])
+
+        return instructions
+
+    def generate_instruction_response(self, instruction: str, context: str) -> str:
+        context = self.file_details["file_info"]["file_code"]
+        max_context_length = self.model_config["inference_model"]["model_params"][
+            "context_length"
+        ]
+        prompt_template = self.model_config["prompt_template"].format(
+            system_prompt=self.model_config["system_prompt"],
+            instruction_prompt=self.model_config["instruction_prompt"],
+        )
+
+        prompt = prompt_template.format(context=context, query=instruction)
+        context_size = len(self.llm.tokenize(prompt))
+        logging.info("***Context Size: " + str(context_size))
+
+        if context_size > 0.70 * max_context_length:
+            err_msg = f"Model response failed, increase py2dataset_model_config.yaml context_length > {math.ceil(context_size/0.70)}"
+            logging.error(err_msg)
+
+        response = ""
+        try:
+            response = re.sub(r"\n\s*\n", "\n\n", self.llm(prompt))
+            logging.info(f"***Overall Response: {response}")
+        except Exception as error:
+            logging.error(f"Failed to generate model response: {error}")
+
+        return response
+
+    def get_file_contents(self) -> List[str]:
+        objects = []
+        objects.append(self.file_details["file_info"]["file_code"])
+        for class_name, class_info in self.file_details["classes"].items():
+            for key, method_info in class_info.items():
+                if key.startswith("class_method_"):
+                    method_name = f"# {class_name}.{key[len('class_method_'):]}"
+                    context = method_name + "\n" + method_info["method_code"]
+                    objects.append(context)
+        return objects
+
+    def process_generated_instructions(self) -> None:
+        objects = self.get_file_contents()
+        for context in objects:
+            logging.info("Processing context: " + context.replace("\n", " ")[:80] + " ...")
+            instructions = self.generate_instructions(context)
+
+            for instruction in instructions:
+                response = self.generate_instruction_response(instruction, context)
+                response = str(response).strip()
+                self.instruct_list.append(
+                    {"instruction": instruction, "input": "", "output": response}
+                )
+
     def generate(self) -> Tuple[List[Dict], List[Dict]]:
         """
         Generate responses for all the questions and returns the instruct_list.
@@ -326,10 +425,13 @@ class DatasetGenerator:
         Returns:
             Tuple[List[Dict], List[Dict]]: The generated question-answer pairs and instructions.
         """
-        for question in self.questions:
-            self.process_question_type(
-                question["type"], question["id"], question["text"]
-            )
+        # for question in self.questions:
+        #     self.process_question_type(
+        #         question["type"], question["id"], question["text"]
+        #     )
+
+        self.process_generated_instructions()
+
         return self.instruct_list
 
 

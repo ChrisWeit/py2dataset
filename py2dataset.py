@@ -39,6 +39,7 @@ import subprocess
 import os
 import git
 import shlex
+from tqdm import tqdm
 
 from get_python_file_details import get_python_file_details
 from get_python_datasets import get_python_datasets
@@ -149,7 +150,9 @@ def py2dataset(
         "detailed": detailed,
     }
 
-    for python_pathname in Path(start).rglob("[!_]*.py"):
+    python_files = list(Path(start).rglob("[!_]*.py"))
+
+    for python_pathname in tqdm(python_files):
         params["python_pathname"] = str(python_pathname)
         params["relative_path"] = Path(
             os.path.relpath(python_pathname, os.path.dirname(get_start_dir(start)))
@@ -160,7 +163,7 @@ def py2dataset(
         instruct_pathname = base_pathname.with_suffix(".py.instruct.json")
         if instruct_pathname.exists() and skip_regen:
             continue
-        
+
         # process each python file in a separate process to manage memory
         if params["model_config"] is None and params["use_llm"]:
             proc = Process(target=process_single_python_file, kwargs=params)
